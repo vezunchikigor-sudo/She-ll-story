@@ -1,0 +1,328 @@
+extends Node3D
+
+var survivor
+var boss
+var message_label
+var completed := false
+var cutscene
+var boss_started := false
+var boss_door: StaticBody3D
+
+const WALL_H: float = 3.8
+const ROOM_W: float = 14.0
+const HALL_D: float = 12.0
+const LIB_D: float = 13.0
+
+func mat(c: Color, rough: float = 0.78, metallic: float = 0.0) -> StandardMaterial3D:
+    var m := StandardMaterial3D.new()
+    m.albedo_color = c
+    m.roughness = rough
+    m.metallic = metallic
+    return m
+
+func box(parent: Node3D, pos: Vector3, size: Vector3, c: Color, map_kind: String = "wall", collision: bool = true, material: StandardMaterial3D = null) -> Node3D:
+    var root: Node3D = StaticBody3D.new() if collision else Node3D.new()
+    root.position = pos
+    parent.add_child(root)
+    var mi := MeshInstance3D.new()
+    var mesh := BoxMesh.new()
+    mesh.size = size
+    mi.mesh = mesh
+    mi.material_override = material if material != null else mat(c)
+    root.add_child(mi)
+    if collision:
+        var cs := CollisionShape3D.new()
+        var sh := BoxShape3D.new()
+        sh.size = size
+        cs.shape = sh
+        root.add_child(cs)
+    root.set_meta("map_size", size)
+    root.set_meta("map_kind", map_kind)
+    return root
+
+func floor_tile(parent: Node3D, pos: Vector3, size: Vector3, material: StandardMaterial3D) -> void:
+    box(parent, pos, size, Color.WHITE, "floor", false, material)
+
+func add_herringbone_floor(origin: Vector3, size: Vector2) -> void:
+    var wood_a := mat(Color(0.29, 0.105, 0.045), 0.62)
+    var wood_b := mat(Color(0.20, 0.065, 0.026), 0.66)
+    var board_len: float = 1.05
+    var board_w: float = 0.24
+    var z_count: int = int(size.y / (board_w * 2.0))
+    for row in range(z_count):
+        var z: float = origin.z - size.y * 0.5 + float(row) * board_w * 2.0 + board_w
+        for col in range(int(size.x / board_len) + 2):
+            var x: float = origin.x - size.x * 0.5 + float(col) * board_len - 0.25
+            var vertical: bool = ((row + col) % 2) == 0
+            var p := Vector3(x, -0.035, z)
+            var s := Vector3(board_len, 0.07, board_w)
+            var mi := floor_tile(self, p, s, wood_a if ((row + col) % 3) != 0 else wood_b)
+            if vertical:
+                # The helper creates a root, but rotation is applied to its child mesh and collision-free floor.
+                pass
+    box(self, Vector3(origin.x, -0.08, origin.z), Vector3(size.x, 0.16, size.y), Color(0.18,0.055,0.02), "floor_collision", true)
+
+func add_trim_wall(pos: Vector3, size: Vector3, base: Color = Color(0.72,0.67,0.57)) -> void:
+    var plaster := mat(base, 0.88)
+    box(self, pos, size, base, "wall", true, plaster)
+    var wood := mat(Color(0.20,0.075,0.032), 0.58)
+    var lower_y: float = 0.62
+    box(self, Vector3(pos.x, lower_y, pos.z), Vector3(size.x + 0.08, 0.16, size.z + 0.08), Color.WHITE, "trim", false, wood)
+    box(self, Vector3(pos.x, WALL_H - 0.22, pos.z), Vector3(size.x + 0.10, 0.20, size.z + 0.10), Color.WHITE, "trim", false, wood)
+    if size.x > size.z:
+        box(self, Vector3(pos.x, 1.12, pos.z - 0.02), Vector3(size.x + 0.05, 0.10, 0.12), Color.WHITE, "trim", false, wood)
+        box(self, Vector3(pos.x, 2.35, pos.z - 0.02), Vector3(size.x + 0.05, 0.10, 0.12), Color.WHITE, "trim", false, wood)
+    else:
+        box(self, Vector3(pos.x - 0.02, 1.12, pos.z), Vector3(0.12, 0.10, size.z + 0.05), Color.WHITE, "trim", false, wood)
+        box(self, Vector3(pos.x - 0.02, 2.35, pos.z), Vector3(0.12, 0.10, size.z + 0.05), Color.WHITE, "trim", false, wood)
+
+func add_door(center: Vector3, width: float = 2.6, height: float = 2.65, double: bool = true) -> StaticBody3D:
+    var wood := mat(Color(0.10,0.028,0.012), 0.50)
+    var frame := mat(Color(0.26,0.10,0.035), 0.52)
+    var root := box(self, center + Vector3(0,height*0.5,0), Vector3(width,height,0.20), Color.WHITE, "door", true, wood) as StaticBody3D
+    box(root, Vector3(0,0.04,-0.12), Vector3(width+0.34,height+0.28,0.12), Color.WHITE, "trim", false, frame)
+    var half: float = width * 0.46 if double else 0.0
+    for x in ([-half, half] if double else [0.0]):
+        for y in [0.52, 1.25, 2.02]:
+            box(root, Vector3(x,y-height*0.5,-0.13), Vector3(width*0.32,0.42,0.05), Color.WHITE, "door_panel", false, frame)
+        cyl(root, Vector3(x + (0.32 if double else 0.0), 1.26-height*0.5,-0.18), 0.045, 0.10, Color(0.72,0.50,0.20), false)
+    return root
+
+func cyl(parent: Node3D, pos: Vector3, r: float, h: float, c: Color, collision: bool = false, material: StandardMaterial3D = null) -> Node3D:
+    var root: Node3D = StaticBody3D.new() if collision else Node3D.new()
+    root.position = pos
+    parent.add_child(root)
+    var mi := MeshInstance3D.new()
+    var mesh := CylinderMesh.new()
+    mesh.top_radius = r
+    mesh.bottom_radius = r * 1.05
+    mesh.height = h
+    mi.mesh = mesh
+    mi.material_override = material if material != null else mat(c)
+    root.add_child(mi)
+    if collision:
+        var cs := CollisionShape3D.new()
+        var sh := CylinderShape3D.new()
+        sh.radius = r
+        sh.height = h
+        cs.shape = sh
+        root.add_child(cs)
+    root.set_meta("map_point", true)
+    root.set_meta("map_kind", "furniture")
+    return root
+
+func add_chandelier(center: Vector3) -> void:
+    var brass := mat(Color(0.32,0.12,0.035),0.42,0.45)
+    cyl(self, center + Vector3(0,1.15,0), 0.055, 2.3, Color.WHITE, false, brass)
+    cyl(self, center + Vector3(0,0.08,0), 0.22, 0.16, Color.WHITE, false, brass)
+    for i in range(8):
+        var a: float = TAU * float(i) / 8.0
+        var p := center + Vector3(cos(a)*1.0,0.08,sin(a)*1.0)
+        cyl(self, p, 0.035, 0.65, Color.WHITE, false, brass)
+        var lamp := OmniLight3D.new()
+        lamp.position = p + Vector3(0,0.35,0)
+        lamp.omni_range = 4.8
+        lamp.light_energy = 1.2
+        lamp.light_color = Color(1.0,0.68,0.38)
+        add_child(lamp)
+
+func add_wall_sconce(pos: Vector3, rot_y: float = 0.0) -> void:
+    var brass := mat(Color(0.28,0.10,0.025),0.45,0.45)
+    var root := Node3D.new()
+    root.position = pos
+    root.rotation.y = rot_y
+    add_child(root)
+    cyl(root, Vector3(0,0,0), 0.055, 0.22, Color.WHITE, false, brass)
+    var lamp := OmniLight3D.new()
+    lamp.position = Vector3(0,0.12,0)
+    lamp.omni_range = 3.2
+    lamp.light_energy = 0.75
+    lamp.light_color = Color(1.0,0.58,0.30)
+    root.add_child(lamp)
+
+func add_stairs(x_center: float, z_start: float, direction: float) -> void:
+    var wood := mat(Color(0.17,0.045,0.018),0.50)
+    var carpet := mat(Color(0.20,0.025,0.025),0.88)
+    var rail := mat(Color(0.13,0.035,0.014),0.48)
+    var step_count: int = 12
+    var step_depth: float = 0.42
+    var step_h: float = 0.25
+    for i in range(step_count):
+        var y: float = step_h * float(i) + step_h * 0.5
+        var z: float = z_start + direction * (float(i) * step_depth)
+        box(self, Vector3(x_center,y,z), Vector3(2.55,step_h,step_depth+0.04), Color.WHITE, "stairs", true, wood)
+        box(self, Vector3(x_center,y+0.012,z-direction*0.01), Vector3(1.42,0.035,step_depth+0.06), Color.WHITE, "carpet", false, carpet)
+    var top_y: float = step_count * step_h
+    box(self, Vector3(x_center,top_y*0.5, z_start + direction*(step_count-1)*step_depth*0.5), Vector3(2.82,top_y,step_count*step_depth+0.30), Color.WHITE, "stair_side", true, wood)
+    # Cover the center volume again with the open stair treads by placing the risers above; side supports remain.
+    for side in [-1.0,1.0]:
+        var sx: float = x_center + side*1.22
+        box(self, Vector3(sx,top_y*0.52,z_start + direction*(step_count-1)*step_depth*0.5), Vector3(0.10,top_y+0.08,step_count*step_depth+0.3), Color.WHITE, "rail_support", true, rail)
+        var post := 0.0
+        for i in range(4):
+            var zz: float = z_start + direction*(float(i*3)*step_depth)
+            box(self, Vector3(sx,top_y*0.5,zz), Vector3(0.12,top_y+0.25,0.12), Color.WHITE, "rail_post", false, rail)
+        box(self, Vector3(sx,top_y+0.25,z_start + direction*(step_count-1)*step_depth*0.5), Vector3(0.13,0.13,step_count*step_depth+0.35), Color.WHITE, "rail", false, rail)
+
+func add_bookshelf_wall(z: float, x_center: float, width: float, height: float = 3.35) -> void:
+    var wood := mat(Color(0.105,0.028,0.012),0.48)
+    var shelf := mat(Color(0.16,0.048,0.018),0.52)
+    box(self, Vector3(x_center,height*0.5,z), Vector3(width,height,0.36), Color.WHITE, "bookshelf", true, wood)
+    var count: int = max(1, int(width / 0.34))
+    for y in [0.45,1.15,1.85,2.55,3.22]:
+        box(self, Vector3(x_center,y,z-0.20), Vector3(width,0.10,0.44), Color.WHITE, "shelf", true, shelf)
+    for i in range(count):
+        var bx: float = x_center - width*0.47 + float(i)*width/float(count-1 if count > 1 else 1)
+        for row in range(4):
+            var h: float = 0.38 + float((i*7+row*3)%6)*0.045
+            var book_col := Color(0.18+float((i+row)%4)*0.035,0.055+float((i*3+row)%3)*0.025,0.025+float((i+row)%5)*0.012)
+            box(self, Vector3(bx,0.58+float(row)*0.70+h*0.18,z-0.23), Vector3(0.18,h,0.27), book_col, "decor", false)
+
+func add_bookshelf_side(x: float, z_center: float, depth: float, length: float, height: float = 3.35) -> void:
+    var wood := mat(Color(0.105,0.028,0.012),0.48)
+    box(self, Vector3(x,height*0.5,z_center), Vector3(depth,height,length), Color.WHITE, "bookshelf", true, wood)
+    for z in [-length*0.46,-length*0.23,0.0,length*0.23,length*0.46]:
+        box(self, Vector3(x-0.20,0.70,z_center+z), Vector3(depth+0.05,0.10,0.38), Color.WHITE, "shelf", true, wood)
+
+func add_ladder(pos: Vector3) -> void:
+    var wood := mat(Color(0.26,0.09,0.035),0.55)
+    for x in [-0.50,0.50]:
+        box(self, pos + Vector3(x,1.25,0), Vector3(0.11,2.5,0.11), Color.WHITE, "ladder", false, wood)
+    for i in range(8):
+        box(self, pos + Vector3(0,0.28+float(i)*0.30,0), Vector3(1.05,0.08,0.16), Color.WHITE, "ladder", false, wood)
+
+func add_console(pos: Vector3) -> void:
+    var wood := mat(Color(0.13,0.035,0.014),0.52)
+    box(self,pos+Vector3(0,0.58,0),Vector3(1.55,0.16,0.50),Color.WHITE,"furniture",true,wood)
+    for x in [-0.62,0.62]:
+        box(self,pos+Vector3(x,0.28,0),Vector3(0.10,0.58,0.10),Color.WHITE,"furniture",true,wood)
+
+func add_portrait(pos: Vector3, size: Vector2 = Vector2(0.85,1.10), rot_y: float = 0.0) -> void:
+    var frame := mat(Color(0.30,0.12,0.035),0.46,0.2)
+    box(self,pos,Vector3(size.x,size.y,0.07),Color(0.03,0.02,0.015),"decor",false,frame)
+    box(self,pos+Vector3(0,0,-0.045),Vector3(size.x*0.82,size.y*0.82,0.02),Color(0.10,0.075,0.05),"decor",false)
+
+func add_rug(pos: Vector3, size: Vector2, color: Color) -> void:
+    box(self,pos+Vector3(0,0.012,0),Vector3(size.x,0.025,size.y),color,"decor",false,mat(color,0.96))
+    box(self,pos+Vector3(0,0.027,0),Vector3(size.x*0.92,0.012,size.y*0.92),Color(0.20,0.025,0.025),"decor",false,mat(Color(0.20,0.025,0.025),0.98))
+
+func add_ceiling(room_center: Vector3, size: Vector2) -> void:
+    var cream := mat(Color(0.57,0.52,0.44),0.90)
+    box(self,Vector3(room_center.x,WALL_H,room_center.z),Vector3(size.x,0.18,size.y),Color.WHITE,"ceiling",true,cream)
+    var wood := mat(Color(0.20,0.075,0.03),0.58)
+    for x in [-size.x*0.5+0.35,0.0,size.x*0.5-0.35]:
+        box(self,Vector3(x,WALL_H-0.10,room_center.z),Vector3(0.14,0.18,size.y),Color.WHITE,"ceiling_trim",false,wood)
+    box(self,Vector3(room_center.x,WALL_H-0.10,room_center.z),Vector3(size.x,0.18,0.14),Color.WHITE,"ceiling_trim",false,wood)
+
+func decor() -> void:
+    # The level is now a real 3D architectural shell: continuous walls, parquet,
+    # side staircases and fully built book-lined library. The reference videos are
+    # used as the visual target, not as disconnected wall patches.
+    add_herringbone_floor(Vector3(0,0,4),Vector2(14,12))
+    add_herringbone_floor(Vector3(0,0,-8.5),Vector2(14,13))
+    add_ceiling(Vector3(0,0,4),Vector2(14,12))
+    add_ceiling(Vector3(0,0,-8.5),Vector2(14,13))
+
+    # HALL: full continuous perimeter and a wide central circulation lane.
+    add_trim_wall(Vector3(-7,1.9,4),Vector3(0.30,WALL_H,12))
+    add_trim_wall(Vector3(7,1.9,4),Vector3(0.30,WALL_H,12))
+    add_trim_wall(Vector3(0,1.9,10),Vector3(14,WALL_H,0.30))
+    add_trim_wall(Vector3(-5.05,1.9,-2),Vector3(3.9,WALL_H,0.30))
+    add_trim_wall(Vector3(5.05,1.9,-2),Vector3(3.9,WALL_H,0.30))
+    add_door(Vector3(0,0,9.78),2.75,2.65,true)
+    # Side staircases, deliberately not in the middle of the hall.
+    add_stairs(-4.75,7.85,-1.0)
+    add_stairs(4.75,7.85,-1.0)
+    add_rug(Vector3(0,0,4.8),Vector2(3.8,5.4),Color(0.22,0.028,0.025))
+    add_console(Vector3(-2.4,0,8.1))
+    add_console(Vector3(2.4,0,8.1))
+    for p in [Vector3(-6.78,2.0,7.8),Vector3(6.78,2.0,7.8),Vector3(-6.78,2.0,3.1),Vector3(6.78,2.0,3.1)]:
+        add_wall_sconce(p, PI*0.5 if p.x < 0 else -PI*0.5)
+    for p in [Vector3(-5.9,2.0,9.0),Vector3(5.9,2.0,9.0),Vector3(-5.9,2.0,-1.1),Vector3(5.9,2.0,-1.1)]:
+        add_portrait(p,Vector2(0.72,0.92),PI*0.5 if abs(p.x)>6 else 0.0)
+    add_chandelier(Vector3(0,3.0,4.2))
+    add_chandelier(Vector3(0,3.0,8.2))
+    add_chandelier(Vector3(0,3.0,0.1))
+
+    # LIBRARY: every major wall is a continuous bank of shelves.
+    add_trim_wall(Vector3(-7,1.9,-8.5),Vector3(0.30,WALL_H,13))
+    add_trim_wall(Vector3(7,1.9,-8.5),Vector3(0.30,WALL_H,13))
+    add_trim_wall(Vector3(0,1.9,-15),Vector3(14,WALL_H,0.30))
+    add_trim_wall(Vector3(-5.0,1.9,-2),Vector3(4.0,WALL_H,0.30))
+    add_trim_wall(Vector3(5.0,1.9,-2),Vector3(4.0,WALL_H,0.30))
+    # Rear wall: books on both sides of the carved double door.
+    add_bookshelf_wall(-14.72,-4.2,5.2)
+    add_bookshelf_wall(-14.72,4.2,5.2)
+    # Left/right walls are shelf-lined from front to rear, as described by the user.
+    add_bookshelf_side(-6.70,-8.7,0.38,11.5)
+    add_bookshelf_side(6.70,-8.7,0.38,11.5)
+    # Additional shelf bank opposite the ladder, uninterrupted across its length.
+    add_bookshelf_wall(-2.20,0,10.0,3.35)
+    add_ladder(Vector3(-2.0,0,-11.7))
+    add_door(Vector3(0,0,-14.78),2.70,2.65,true)
+    add_console(Vector3(3.0,0,-5.0))
+    add_rug(Vector3(0,0,-8.5),Vector2(5.8,4.8),Color(0.17,0.045,0.025))
+    add_chandelier(Vector3(0,3.0,-8.4))
+    add_wall_sconce(Vector3(-6.78,2.0,-4.5),PI*0.5)
+    add_wall_sconce(Vector3(-6.78,2.0,-11.5),PI*0.5)
+    add_wall_sconce(Vector3(6.78,2.0,-4.5),-PI*0.5)
+    add_wall_sconce(Vector3(6.78,2.0,-11.5),-PI*0.5)
+
+func spawn_enemy(pos: Vector3, kind: int) -> void:
+    var e = preload("res://scenes/enemy.tscn").instantiate()
+    e.position = pos
+    e.max_hp = 120 if kind == 1 else 180
+    e.move_speed = 1.70 if kind == 1 else 1.72
+    e.attack_damage = 8 if kind == 1 else 13
+    add_child(e)
+
+func _ready() -> void:
+    AudioManager.play_music("mansion")
+    decor()
+    spawn_enemy(Vector3(4.0,0.2,-9.8),1)
+    survivor = preload("res://scenes/survivor.tscn").instantiate()
+    survivor.add_to_group("survivor")
+    survivor.position = Vector3(-4.8,0.2,-8.0)
+    add_child(survivor)
+    survivor.rescued.connect(_on_rescued)
+    boss = preload("res://scenes/boss.tscn").instantiate()
+    boss.add_to_group("enemy")
+    boss.position = Vector3(0,0.2,-13.4)
+    add_child(boss)
+    boss.visible = false
+    boss.process_mode = Node.PROCESS_MODE_DISABLED
+    boss.defeated.connect(_on_boss_defeated)
+    cutscene = preload("res://scripts/cutscene_manager.gd").new()
+    add_child(cutscene)
+    call_deferred("_start_intro")
+
+func _start_intro() -> void:
+    cutscene.setup(self,$Player,$HUD)
+    await cutscene.intro()
+
+func _on_rescued() -> void:
+    GameState.flags["boss_unlocked"] = true
+    GameState.save_game()
+    boss.visible = true
+    boss.process_mode = Node.PROCESS_MODE_INHERIT
+    show_message("Лекарство передано. Архив открыт.")
+
+func _on_boss_defeated() -> void:
+    completed = true
+    call_deferred("_final_cutscene")
+
+func _final_cutscene() -> void:
+    await cutscene.final_scene()
+
+func show_message(text_value: String) -> void:
+    if has_node("HUD") and $HUD.has_method("show_message"):
+        $HUD.show_message(text_value)
+    elif message_label:
+        message_label.text = text_value
+
+func try_interact(player) -> void:
+    if survivor and not survivor.used and player.global_position.distance_to(survivor.global_position) < 2.8:
+        show_message(survivor.interact(player))
+        return
+    if boss and not GameState.flags.get("boss_unlocked",false) and player.global_position.distance_to(boss.global_position) < 4:
+        show_message("Сначала найдите выжившего и дайте ему лекарство.")

@@ -1,0 +1,6 @@
+.godot/
+.import/
+build/
+export/
+*.pck
+export_presets.cfg

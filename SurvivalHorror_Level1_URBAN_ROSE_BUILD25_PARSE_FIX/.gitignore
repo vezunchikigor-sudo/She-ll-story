@@ -1,0 +1,55 @@
+# Godot — генерируемое и мусор (не коммитить)
+.godot/
+.import/
+/android/
+build/
+export/
+dist/
+*.pck
+*.apk
+*.aab
+
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+*.csproj
+*.sln
+*.unitypackage
+
+# Unreal
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Python / Node
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Логи и кэши
+*.log
+.cache/
+
+# Редакторы и ОС
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Секреты
+.env
+.env.*
+!.env.example
+
+# Экспортные пресеты содержат параметры keystore — остаются локально
+export_presets.cfg

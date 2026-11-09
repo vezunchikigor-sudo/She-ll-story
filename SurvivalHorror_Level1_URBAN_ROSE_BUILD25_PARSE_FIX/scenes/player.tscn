@@ -1,0 +1,26 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/player.gd" id="1_p"]
+[ext_resource type="Script" path="res://scripts/camera_rig.gd" id="2_c"]
+[ext_resource type="PackedScene" path="res://art/rokoko/1790016838188.fbx" id="3_v"]
+
+[sub_resource type="CapsuleShape3D" id="Capsule"]
+radius = 0.32
+height = 1.8
+
+[node name="Player" type="CharacterBody3D" groups=["player"]]
+script = ExtResource("1_p")
+
+[node name="Visual" parent="." instance=ExtResource("3_v")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.9, 0)
+shape = SubResource("Capsule")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("2_c")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+current = true
+near = 0.05
+far = 300.0

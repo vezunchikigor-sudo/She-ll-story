@@ -1,0 +1,36 @@
+[application]
+config/name="Survival Horror — Mansion Level 1"
+run/main_scene="res://scenes/main_menu.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+
+[autoload]
+GameState="*res://scripts/game_state.gd"
+AudioManager="*res://scripts/audio_manager.gd"
+
+[input]
+move_left={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":65)]}
+move_right={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":68)]}
+move_forward={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":87)]}
+move_back={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":83)]}
+fire={"deadzone":0.2,"events":[Object(InputEventMouseButton,"button_index":1)]}
+aim={"deadzone":0.2,"events":[Object(InputEventMouseButton,"button_index":2)]}
+reload={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":82)]}
+knife={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":70)]}
+use={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":69)]}
+crouch={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":67)]}
+weapon_pistol={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":49)]}
+weapon_shotgun={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":50)]}
+weapon_uzi={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":51)]}
+weapon_rocket={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":52)]}

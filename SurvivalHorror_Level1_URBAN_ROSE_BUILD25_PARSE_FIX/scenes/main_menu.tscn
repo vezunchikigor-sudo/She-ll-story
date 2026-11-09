@@ -1,0 +1,63 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Texture2D" path="res://art/reference/main_menu.jpg" id="1"]
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="2"]
+[node name="MainMenu" type="Control"]
+layout_mode=3
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+script=ExtResource("2")
+[node name="Background" type="TextureRect" parent="."]
+layout_mode=1
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+grow_horizontal=2
+grow_vertical=2
+texture=ExtResource("1")
+expand_mode=1
+stretch_mode=6
+mouse_filter=2
+[node name="NewGame" type="Button" parent="."]
+anchor_left = 0.405
+anchor_top = 0.705
+anchor_right = 0.575
+anchor_bottom = 0.760
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+flat = true
+text = ""
+
+[node name="Continue" type="Button" parent="."]
+anchor_left = 0.405
+anchor_top = 0.760
+anchor_right = 0.575
+anchor_bottom = 0.812
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+flat = true
+text = ""
+
+[node name="Settings" type="Button" parent="."]
+anchor_left = 0.405
+anchor_top = 0.812
+anchor_right = 0.575
+anchor_bottom = 0.865
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+flat = true
+text = ""
+
+[node name="Info" type="Label" parent="."]
+offset_left=760.0
+offset_top=940.0
+offset_right=1200.0
+offset_bottom=1030.0
+text=""
+horizontal_alignment=1

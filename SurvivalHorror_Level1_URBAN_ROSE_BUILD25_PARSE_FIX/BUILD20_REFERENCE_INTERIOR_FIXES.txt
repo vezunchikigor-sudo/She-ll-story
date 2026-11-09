@@ -1,0 +1,9 @@
+BUILD20 — reference interior + controls/floor fixes
+
+1. Intro cutscene: solid black full-screen layer behind the 9:16 video, so the 3D mansion is never visible in the side bars.
+2. Player: real collision floor slab added to hall and library; the old floor was visual-only and caused the player to fall through at spawn.
+3. HUD action buttons: exact centers re-aligned from Gameplay.jpeg 2816x1584 and placed above the camera swipe surface.
+4. HUD input: camera look zone changed to PASS and action button container to STOP/z=1000 so touches reach buttons; crouch remains a direct toggle.
+5. Interior: hall and library now use 1920x1080 photographic architectural backdrops derived directly from the supplied reference images, inside a real 3D room shell with collision, molding, arches, bookshelves, ladder, chandelier, doors and furniture.
+
+This is a reference-faithful 3D set using the supplied photographic references as high-detail architectural faces; it is not photogrammetry.
